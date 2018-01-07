@@ -358,7 +358,7 @@ my_error_innodb(
 		break;
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
-			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
+			 (ulong) DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
 		break;
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		my_error(ER_TOO_MANY_CONCURRENT_TRXS, MYF(0));
@@ -1799,7 +1799,7 @@ innobase_get_foreign_key_info(
 			/* Not possible to add a foreign key without a
 			referenced column */
 			mutex_exit(&dict_sys->mutex);
-			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), tbl_namep);
+			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
 			goto err_exit;
 		}
 
@@ -2136,7 +2136,7 @@ innobase_check_index_keys(
 
 			if (0 == strcmp(key.name.str, key2.name.str)) {
 				my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
-					 key.name);
+					 key.name.str);
 
 				return(ER_WRONG_NAME_FOR_INDEX);
 			}
@@ -2199,7 +2199,8 @@ innobase_check_index_keys(
 			}
 #endif /* MYSQL_RENAME_INDEX */
 
-			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key.name);
+			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+                                 key.name.str);
 
 			return(ER_WRONG_NAME_FOR_INDEX);
 		}
