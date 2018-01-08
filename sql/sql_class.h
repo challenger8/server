@@ -442,7 +442,7 @@ typedef enum enum_diag_condition_item_name
   Name of each diagnostic condition item.
   This array is indexed by Diag_condition_item_name.
 */
-extern const LEX_STRING Diag_condition_item_names[];
+extern const LEX_CSTRING Diag_condition_item_names[];
 
 /**
   These states are bit coded with HARD. For each state there must be a pair
