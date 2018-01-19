@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2017, MariaDB Corporation.
+Copyright (c) 2017, 2018, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -502,18 +502,6 @@ row_rename_table_for_mysql(
 	const char*	new_name,	/*!< in: new table name */
 	trx_t*		trx,		/*!< in/out: transaction */
 	bool		commit)		/*!< in: whether to commit trx */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
-
-/** Renames a partitioned table for MySQL.
-@param[in]	old_name	Old table name.
-@param[in]	new_name	New table name.
-@param[in,out]	trx		Transaction.
-@return error code or DB_SUCCESS */
-dberr_t
-row_rename_partitions_for_mysql(
-	const char*	old_name,
-	const char*	new_name,
-	trx_t*		trx)
 	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*********************************************************************//**
