@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2014, 2017, MariaDB Corporation.
+Copyright (c) 2014, 2018, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4664,7 +4664,13 @@ lock_table_enqueue_waiting(
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
-		if (trx->dict_operation_lock_mode != RW_X_LATCH) {
+		if (trx->dict_operation_lock_mode == 0
+		    && !trx->lock.trx_locks.count && mode == LOCK_X) {
+			/* RENAME TABLE will first lock the user table,
+			within the dictionary transaction, before
+			locking the data dictionary. */
+			break;
+		} else if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 		} else if (!strcmp(table->name.m_name,
 				   "mysql/innodb_table_stats")
 			   || !strcmp(table->name.m_name,

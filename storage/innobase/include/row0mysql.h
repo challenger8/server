@@ -420,16 +420,18 @@ ulint
 row_get_background_drop_list_len_low(void);
 /*======================================*/
 
-/*********************************************************************//**
-Sets an exclusive lock on a table.
+/** Acquire a table lock.
+@param[in,out]	trx	transaction
+@param[in]	table	table
+@param[in]	mode	lock mode
+@param[in]	op_info	string for trx->op_info
 @return error code or DB_SUCCESS */
 dberr_t
 row_mysql_lock_table(
-/*=================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	dict_table_t*	table,		/*!< in: table to lock */
-	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
-	const char*	op_info)	/*!< in: string for trx->op_info */
+	trx_t*		trx,
+	dict_table_t*	table,
+	enum lock_mode	mode,
+	const char*	op_info)
 	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*********************************************************************//**

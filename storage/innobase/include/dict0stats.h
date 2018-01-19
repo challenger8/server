@@ -130,29 +130,21 @@ dict_stats_update(
 /** Remove the persistent statistics for an index.
 @param[in]	db_and_table	schema and table name, e.g., 'db/table'
 @param[in]	iname		index name
-@param[out]	errstr		error message (when not returning DB_SUCCESS)
-@param[in]	errstr_sz	sizeof errstr
 @param[in,out]	trx		transaction
 @return DB_SUCCESS or error code */
 dberr_t
 dict_stats_drop_index(
 	const char*	db_and_table,
 	const char*	iname,
-	char*		errstr,
-	size_t		errstr_sz,
 	trx_t*		trx);
 
 /** Remove the persistent statistics for a table and all of its indexes.
 @param[in]	db_and_table	schema and table name, e.g., 'db/table'
-@param[out]	errstr		error message (when not returning DB_SUCCESS)
-@param[in]	errstr_sz	sizeof errstr
 @param[in,out]	trx		transaction
 @return DB_SUCCESS or error code */
 dberr_t
 dict_stats_drop_table(
 	const char*	db_and_table,
-	char*		errstr,
-	size_t		errstr_sz,
 	trx_t*		trx);
 
 /** Calculate index statistics.
@@ -167,16 +159,12 @@ dict_stats_update_for_index(dict_index_t* index, trx_t* trx)
 /** Rename a table in the InnoDB persistent statistics storage.
 @param[in]	old_name	old schema and table name, e.g., 'db/table'
 @param[in]	new_name	new schema and table name, e.g., 'db/table'
-@param[out]	errstr		error message (when not returning DB_SUCCESS)
-@param[in]	errstr_sz	sizeof errstr
 @param[in,out]	trx		transaction
 @return DB_SUCCESS or error code */
 dberr_t
 dict_stats_rename_table(
 	const char*	old_name,
 	const char*	new_name,
-	char*		errstr,
-	size_t		errstr_sz,
 	trx_t*		trx);
 #ifdef MYSQL_RENAME_INDEX
 /*********************************************************************//**

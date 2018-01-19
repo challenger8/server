@@ -29,12 +29,13 @@ Created 9/17/2000 Heikki Tuuri
 #include <debug_sync.h>
 #include <gstream.h>
 #include <spatial.h>
+#include <sql_const.h>
+#include <sql_error.h>
 
 #include "row0mysql.h"
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include <sql_const.h>
 #include "dict0dict.h"
 #include "dict0load.h"
 #include "dict0stats.h"
@@ -3242,16 +3243,18 @@ row_discard_tablespace_for_mysql(
 	return(row_discard_tablespace_end(trx, table, err));
 }
 
-/*********************************************************************//**
-Sets an exclusive lock on a table.
+/** Acquire a table lock.
+@param[in,out]	trx	transaction
+@param[in]	table	table
+@param[in]	mode	lock mode
+@param[in]	op_info	string for trx->op_info
 @return error code or DB_SUCCESS */
 dberr_t
 row_mysql_lock_table(
-/*=================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	dict_table_t*	table,		/*!< in: table to lock */
-	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
-	const char*	op_info)	/*!< in: string for trx->op_info */
+	trx_t*		trx,
+	dict_table_t*	table,
+	enum lock_mode	mode,
+	const char*	op_info)
 {
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
@@ -3259,7 +3262,7 @@ row_mysql_lock_table(
 	sel_node_t*	node;
 
 	ut_ad(trx);
-	ut_ad(mode == LOCK_X || mode == LOCK_S);
+	ut_ad(mode == LOCK_X || mode == LOCK_S || mode == LOCK_IS);
 
 	heap = mem_heap_create(512);
 
@@ -3898,10 +3901,10 @@ row_drop_table_for_mysql(
 		if (!table->no_rollback())
 #endif
 		{
-			char	errstr[1024];
-			if (dict_stats_drop_table(name, errstr, sizeof errstr,
-						  trx) != DB_SUCCESS) {
-				ib::warn() << errstr;
+			if (dict_stats_drop_table(table->name.m_name, trx)
+			    != DB_SUCCESS) {
+				ib::warn() << "DROP TABLE " << table->name
+					   << " failed to drop statistics";
 			}
 
 			err = row_drop_ancillary_fts_tables(table, trx);
@@ -4336,13 +4339,13 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
-	int		retry;
 	bool		aux_fts_rename		= false;
 	char*		is_part 		= NULL;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
+	ut_ad(!commit || trx->mysql_thd);
 
 	if (high_level_read_only) {
 		return(DB_READ_ONLY);
@@ -4353,7 +4356,7 @@ row_rename_table_for_mysql(
 			<< new_name << " of type InnoDB. MySQL system tables"
 			" must be of the MyISAM type!";
 
-		goto funct_exit;
+		return DB_ERROR;
 	}
 
 	trx->op_info = "renaming table";
@@ -4362,6 +4365,8 @@ row_rename_table_for_mysql(
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
+
+	ut_ad(!commit == dict_locked);
 
 	table = dict_table_open_on_name(old_name, dict_locked, FALSE,
 					DICT_ERR_IGNORE_NONE);
@@ -4416,22 +4421,38 @@ row_rename_table_for_mysql(
 	}
 
 	if (!table) {
-		err = DB_TABLE_NOT_FOUND;
-		goto funct_exit;
+		return DB_TABLE_NOT_FOUND;
 
 	} else if (!table->is_readable()
 		   && fil_space_get(table->space) == NULL
 		   && !dict_table_is_discarded(table)) {
 
+		ib::error() << "Table " << table->name
+			<< " does not have a valid .ibd file. "
+			<< TROUBLESHOOTING_MSG;
 		err = DB_TABLE_NOT_FOUND;
 
-		ib::error() << "Table " << old_name << " does not have an .ibd"
-			" file in the database directory. "
-			<< TROUBLESHOOTING_MSG;
+err_exit:
+		dict_table_close(table, dict_locked, FALSE);
+		return err;
 
-		goto funct_exit;
+	} else if (commit) {
+		err = row_mysql_lock_table(trx, table, LOCK_X,
+					   "locking for rename table");
+		if (err != DB_SUCCESS) {
+			goto err_exit;
+		}
+	}
 
-	} else if (new_is_tmp) {
+	ut_ad(!my_atomic_loadlint(&table->n_foreign_key_checks_running));
+	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
+
+	if (commit) {
+		row_mysql_lock_data_dictionary(trx);
+		dict_locked = true;
+	}
+
+	if (new_is_tmp) {
 		/* MySQL is doing an ALTER TABLE command and it renames the
 		original table to a temporary table name. We want to preserve
 		the original foreign key constraint definitions despite the
@@ -4447,23 +4468,6 @@ row_rename_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			goto funct_exit;
 		}
-	}
-
-	/* Is a foreign key check running on this table? */
-	for (retry = 0; retry < 100
-	     && table->n_foreign_key_checks_running > 0; ++retry) {
-		row_mysql_unlock_data_dictionary(trx);
-		os_thread_yield();
-		row_mysql_lock_data_dictionary(trx);
-	}
-
-	if (table->n_foreign_key_checks_running > 0) {
-		ib::error() << "In ALTER TABLE "
-			<< ut_get_name(trx, old_name)
-			<< " a FOREIGN KEY check is running. Cannot rename"
-			" table.";
-		err = DB_TABLE_IN_FK_CHECK;
-		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query
@@ -4806,7 +4810,29 @@ funct_exit:
 	}
 
 	if (commit) {
+		if (err == DB_SUCCESS) {
+			bool is_alter = (new_is_tmp && !old_is_tmp);
+			dberr_t stats_err = is_alter
+				? dict_stats_drop_table(old_name, trx)
+				: dict_stats_rename_table(old_name, new_name,
+							  trx);
+			if (stats_err != DB_SUCCESS) {
+				const char* errmsg = is_alter
+					? "ALTER TABLE failed to"
+					" adjust statistics for "
+					: "RENAME TABLE failed to"
+					" adjust statistics for ";
+				ib::error() << errmsg << old_name;
+				push_warning_printf(
+					trx->mysql_thd,
+					Sql_condition::WARN_LEVEL_WARN,
+					ER_LOCK_WAIT_TIMEOUT,
+					"%s%s", errmsg, old_name);
+			}
+		}
+
 		trx_commit_for_mysql(trx);
+		row_mysql_unlock_data_dictionary(trx);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {

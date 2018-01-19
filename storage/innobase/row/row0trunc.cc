@@ -2103,12 +2103,10 @@ row_truncate_table_for_mysql(
 	dict_table_autoinc_unlock(table);
 
 	if (trx_is_started(trx)) {
-		char	errstr[1024];
-		if (dict_stats_drop_table(table->name.m_name, errstr,
-					  sizeof errstr, trx) != DB_SUCCESS) {
-			ib::warn() << "Deleting persistent "
-				"statistics for table " << table->name
-				   << " failed: " << errstr;
+		if (dict_stats_drop_table(table->name.m_name, trx)
+		    != DB_SUCCESS) {
+			ib::warn() << "TRUNCATE TABLE " << table->name
+				   << " failed to drop statistics";
 		}
 
 		trx_commit_for_mysql(trx);

@@ -2119,9 +2119,6 @@ convert_error_code_to_mysql(
                          "InnoDB");
 		return(HA_ERR_INTERNAL_ERROR);
 
-	case DB_TABLE_IN_FK_CHECK:
-		return(HA_ERR_TABLE_IN_FK_CHECK);
-
 	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
@@ -13903,18 +13900,9 @@ innobase_rename_table(
 	TrxInInnoDB	trx_in_innodb(trx);
 
 	trx_start_if_not_started(trx, true);
+	ut_ad(trx->will_lock > 0);
 
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations. */
-
-	row_mysql_lock_data_dictionary(trx);
-
-	/* Transaction must be flagged as a locking transaction or it hasn't
-	been started yet. */
-
-	ut_a(trx->will_lock > 0);
-
-	error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
+	error = row_rename_table_for_mysql(norm_from, norm_to, trx, true);
 
 	if (error != DB_SUCCESS) {
 		if (error == DB_TABLE_NOT_FOUND
@@ -13939,7 +13927,7 @@ innobase_rename_table(
 #endif /* _WIN32 */
 				trx_start_if_not_started(trx, true);
 				error = row_rename_table_for_mysql(
-					par_case_name, norm_to, trx, TRUE);
+					par_case_name, norm_to, trx, true);
 			}
 		}
 
@@ -13962,8 +13950,6 @@ innobase_rename_table(
 #endif /* _WIN32 */
 		}
 	}
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm
 	files and the InnoDB data dictionary get out-of-sync
@@ -14011,32 +13997,6 @@ ha_innobase::rename_table(
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 
 	innobase_commit_low(trx);
-
-	if (error == DB_SUCCESS) {
-		char	norm_from[MAX_FULL_NAME_LEN];
-		char	norm_to[MAX_FULL_NAME_LEN];
-		char	errstr[512];
-		dberr_t	ret;
-
-		normalize_table_name(norm_from, from);
-		normalize_table_name(norm_to, to);
-
-		trx->error_state = DB_SUCCESS;
-		++trx->will_lock;
-		ret = dict_stats_rename_table(norm_from, norm_to,
-					      errstr, sizeof errstr, trx);
-
-		if (ret != DB_SUCCESS) {
-			trx_rollback_to_savepoint(trx, NULL);
-			ib::error() << errstr;
-
-			push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-				     ER_LOCK_WAIT_TIMEOUT, errstr);
-		} else {
-			innobase_commit_low(trx);
-		}
-	}
-
 	trx_free_for_mysql(trx);
 
 	/* Add a special case to handle the Duplicated Key error

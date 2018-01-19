@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2017, MariaDB Corporation.
+Copyright (c) 2017, 2018, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -657,8 +657,6 @@ ut_strerr(
 		return("End of index");
 	case DB_IO_ERROR:
 		return("I/O error");
-	case DB_TABLE_IN_FK_CHECK:
-		return("Table is being used in foreign key check");
 	case DB_NOT_FOUND:
 		return("not found");
 	case DB_ONLINE_LOG_TOO_BIG:
