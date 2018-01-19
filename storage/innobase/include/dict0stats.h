@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2017, MariaDB Corporation.
+Copyright (c) 2017, 2018, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -178,6 +178,7 @@ dict_stats_rename_table(
 	char*		errstr,
 	size_t		errstr_sz,
 	trx_t*		trx);
+#ifdef MYSQL_RENAME_INDEX
 /*********************************************************************//**
 Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
@@ -191,6 +192,7 @@ dict_stats_rename_index(
 	const char*		old_index_name,	/*!< in: old index name */
 	const char*		new_index_name)	/*!< in: new index name */
 	__attribute__((warn_unused_result));
+#endif /* MYSQL_RENAME_INDEX */
 
 /** Reset the table and index statsistics, corresponding to an empty table.
 @param[in,out]	table			table whose statistics are to be reset

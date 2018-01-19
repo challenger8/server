@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2015, 2017, MariaDB Corporation.
+Copyright (c) 2015, 2018, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3742,6 +3742,7 @@ err_exit:
 	return(ret);
 }
 
+#ifdef MYSQL_RENAME_INDEX
 /*********************************************************************//**
 Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
@@ -3798,6 +3799,7 @@ dict_stats_rename_index(
 
 	return(ret);
 }
+#endif /* MYSQL_RENAME_INDEX */
 
 /* tests @{ */
 #ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
