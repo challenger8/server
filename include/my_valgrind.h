@@ -45,4 +45,3 @@
 #endif
 #define TRASH_ALLOC(A,B) do { TRASH_FILL(A,B,0xA5); MEM_UNDEFINED(A,B); } while(0)
 #define TRASH_FREE(A,B) do { TRASH_FILL(A,B,0x8F); MEM_NOACCESS(A,B); } while(0)
-#define TRASH(A,B) TRASH_FREE(A,B)
